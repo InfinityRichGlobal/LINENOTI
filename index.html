@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notify Register</title>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7/dist/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt&display=swap" rel="stylesheet">
+      <!-- set favicon -->
+  <link rel="icon" href="https://img.icons8.com/stickers/100/good-quality.png" type="image/x-icon">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Prompt', sans-serif;
+            background: #00c300;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbxAHuxDbaVIntEkK6K0KaLJmhNNGNH3DUq4wy8XmhwIksAhAcR5H5bO8lAYYRaMisI/exec';
+        let params = new URLSearchParams(window.location.search);
+        $(document).ready(function () {
+            liff.init({ liffId: '1655873446-3xe866Ql' });
+            liff.ready.then(() => {
+                if (liff.isLoggedIn()) {
+                    let code = params.get('code');
+                    let liffRedirectUri = params.get('liffRedirectUri');
+                    if (code && !liffRedirectUri) {
+                        return saveNotifyToken(code);
+                    }
+                    checkUserToken();
+                } else {
+                    liff.login({ redirectUri: window.location.href });
+                }
+            });
+        })
+
+        function saveNotifyToken(code) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Saving..',
+                text: 'กำลังบันทึก Token ของท่าน กรุณารอสักครู่',
+                didOpen: () => {
+                    Swal.showLoading()
+                },
+                allowOutsideClick: false,
+            })
+            $.get(scriptUrl + '?opt=save_token&code=' + code + '&uid=' + liff.getDecodedIDToken().sub + '&redirect=' + 'https://liff.line.me/' + liff.id
+                , function (data) {
+                    if (data.status == 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'บันทึกข้อมูลสำเร็จ',
+                            text: 'ท่านได้ลงทะเบียนรับการแจ้งเตือนแล้ว',
+                            confirmButtonText: 'รับทราบ',
+                        }).then(() => {
+                            liff.closeWindow();
+                        })
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'บันทึกข้อมูลไม่สำเร็จ',
+                            text: 'กรุณาลองใหม่อีกครั้ง',
+                            confirmButtonText: 'รับทราบ',
+                        })
+                    }
+                }, 'json');
+        }
+
+        async function checkUserToken() {
+            Swal.fire({
+                iconHtml: '<img src="' + liff.getDecodedIDToken().picture + '" style="border-radius: 50%;width: 100px; height: 100px;">',
+                customClass: {
+                    icon: 'border-0 m-4 ms-auto me-auto'
+                },
+                title: 'Loading..',
+                text: 'กำลังตรวจสอบข้อมูล กรุณารอสักครู่',
+                didOpen: () => {
+                    Swal.showLoading()
+                },
+                allowOutsideClick: false,
+            })
+            $.get(scriptUrl + '?opt=checkuser&uid=' + liff.getDecodedIDToken().sub, async function (data) {
+                if (data.status == 'success' && data.token) {
+                    Swal.fire({
+                        iconHtml: '<img src="' + liff.getDecodedIDToken().picture + '" style="border-radius: 50%;width: 100px; height: 100px;">',
+                        customClass: {
+                            icon: 'm-4 ms-auto me-auto border-0'
+                        },
+                        title: 'พบข้อมูลลงทะเบียน',
+                        text: 'ท่านได้ลงทะเบียนรับการแจ้งเตือนแล้ว',
+                        confirmButtonText: 'รับทราบ',
+                    }).then(() => {
+                        liff.closeWindow();
+                    })
+                } else if (data.status == 'success' && !data.token) {
+                    Swal.update({
+                        icon: 'info',
+                        title: 'Redirecting..',
+                        text: 'กำลังเปิดหน้าต่าง Line Notify กรุณารอสักครู่',
+                    })
+                    Swal.showLoading(Swal.getConfirmButton());
+                    let notify_auth_url = await getNotifyAuthUrl();
+                    window.location.href = notify_auth_url;
+                }
+            }, 'json');
+        }
+
+        function getNotifyAuthUrl() {
+            return new Promise((resolve, reject) => {
+                $.get(scriptUrl + '?opt=notify_auth_url&state=' + new Date().getTime() + '&redirect=' + 'https://liff.line.me/' + liff.id
+                    , function (data) {
+                        resolve(data.url);
+                    }, 'json');
+            });
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.7/dist/loadingoverlay.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</body>
+
+</html>
